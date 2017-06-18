@@ -1,0 +1,56 @@
+
+
+~ Rev4Fun ~ Reversing ~ SlashRootCTF (75pts)
+
+
+Diberikan sebuah file bianry elf 64bit:
+
+----------------------------------------------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ file rev4fun_fixed
+rev4fun_fixed: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, 
+interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 2.6.24, B
+uildID[sha1]=37911457631c039ed155b2fa3746baccd94d8a41, not stripped
+ramdhan@n0psledbyt3:~/slashroot$ ./rev4fun_fixed 
+Enter the flag: AAAAAAAAAAAA
+----------------------------------------------------------------------------------------
+
+Pertama, kita load dengan r2, kita akan mencari alamat mana program dieksekusi
+jika input yg kita masukkan benar
+
+--------------------------------------------------------------------------------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ r2 ./rev4fun_fixed
+[0x00400580]> aaa
+[0x00400580]> pdf @ main
+..............*snip*.............
+| |||||||   0x00400776    488d45e0       lea rax, qword [rbp-local_4]
+| |||||||   0x0040077a    4889c6         mov rsi, rax
+| |||||||   0x0040077d    bf50084000     mov edi, str.Nice_manteb__SlashRootCTF__s__n ; "Nice manteb, SlashRootCTF{%s}."
+| |||||||   0x00400782    b800000000     mov eax, 0
+| |||||||   0x00400787    e8b4fdffff     call sym.imp.printf ;sym.imp.printf()
+---------------------------------------------------------------------------------------------------------------------------
+
+Tanpa basa basi, saya menggunakan angr untuk mencari tahu input apa yg tepat agar program mengeksekusi
+intruksi pada alamat 0x0040077d
+
+----------------------------------------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ python
+Python 2.7.13 (default, Jan 19 2017, 14:48:08) 
+[GCC 6.3.0 20170118] on linux2
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import angr
+>>> p = angr.Project("./rev4fun_fixed", load_options={'auto_load_libs' : False})
+>>> path_group = p.factory.path_group()
+>>> path_group.explore(find=0x000000000040077D)
+<PathGroup with 9 deadended, 4 active, 1 found>
+>>> print path_group.found[0].state.posix.dumps(0)
+rev_is_0k
+>>>
+ramdhan@n0psledbyt3:~/slashroot$ ./rev4fun_fixed 
+Enter the flag: rev_is_0k
+Nice manteb, SlashRootCTF{rev_is_0k}
+
+------------------------------------------------------------------------------------
+
+Wah. hebat nih si angr langsung tau flag nya :D
+
+Flag : SlashRootCTF{rev_is_0k}

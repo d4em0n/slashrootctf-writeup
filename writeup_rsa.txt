@@ -1,0 +1,60 @@
+
+~ RSA ~ Crypto ~ SlashRootCTF (100pts)
+Kali ini soal crypto berjudul RSA, diberika clue seperti ini :
+
+	N = 1799159815596838211639026598242739
+	e = 200917020563208190152062461460131
+	c = 318686567182196523307366910641013
+	*format flag : SlashRootCTF{flag}
+
+Kita harus mendekrip c agar mendapatkan flagnya. rumusnya adalah
+
+	hasil = c**d mod N
+
+Karena variable d tidak ada kita harus mencari dulu d nya, d memenuhi
+persamaan berikut :
+
+	d ≡ e**−1 (mod λ(n))
+	λ(n) = lcm(p − 1, q − 1)
+	
+Kita harus mencari p dan q dulu dengan cara memfaktorkan variable N, untuk faktorisasi
+saya menggukana factordb.com Masukkan bilangan N ke form di web itu lalu klik Factorize
+Kita mendapatkan p dan q:
+
+	p = 19900922910223213
+	q = 90405848196748703
+
+Sekarang kita cari λ(n) nya = (p-1)*(q-1)
+                            =  1799159815596838101332255491270824L
+							
+Sekarang kita cari d nya, d = e**−1 (mod λ(n))
+
+Untuk perkalian inverse saya menggunakan skrip python ini
+
+def egcd(a, b):
+    if a == 0:
+        return (b, 0, 1)
+    else:
+        g, y, x = egcd(b % a, a)
+        return (g, x - (b // a) * y, y)
+def modinv(a, m):
+    g, x, y = egcd(a, m)
+    if g != 1:
+        raise Exception('modular inverse does not exist')
+    else:
+        return x % m
+
+modinv(e,λ(n))
+modinv(200917020563208190152062461460131,1799159815596838101332255491270824L)
+
+Menghasilkan d = 315286015811049354491483754610363
+
+
+Sekarang kita sudah mendapat d nya mari kita dekrip bilangan c nya 
+
+                       pow(c,d,N) = 497849955149505153521045210452
+pisahkan bilangan2 diatas menjadi = 49 78 49 95 51 49 50 51 53 52 104 52 104 52
+Sekarang kita ubah ke bilangan ascii
+menjadi : 1N1_312354h4h4 
+
+Flag = SlashRootCTF{1N1_312354h4h4}

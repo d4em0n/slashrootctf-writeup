@@ -1,0 +1,12 @@
+RuZIP (75pts)
+
+Ada yang mengubah file ZIPnya, setelah dibuka kembali ternyata file yang diekstrak bukan flag. 
+RUsak ya ZIPnya? jika iya perbaiki file ZIP tersebut dan dapatkan flagnya.
+
+di dapati sebuah zip error
+setelah dibuka dengan bless dan dibandingnkan dengan zip acak
+terdapat perbedaan header yang valuenya 3C 0C 59 FD 3C 0C 59 3D 3E 0C di awal dan akhir
+rubah valuenya menjadi 3A 3C 59 A3 3A 3C 59 A3 3A 3C 59 75 78
+ekstak dengan unzip di dapati error namun keluar file Flagnya.txt
+
+SlashRootCTF{Z1Pny4_94k_12U54K}

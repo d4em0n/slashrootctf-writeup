@@ -1,0 +1,62 @@
+
+
+~ Reversing : Galatic : SlashRootCTF (100pts)
+
+Diberikan binary galatic elf 32bit. Pertama kita coba jalankan galaticnya
+
++-------------------------------------------------------------------------------------+
+| ramdhan@n0psledbyt3:~/slashroot$ file galatic
+| galatic: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, 
+| interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 2.6.24, 
+| BuildID[sha1]=418367dceda518f64339e506132286bd40de55bc, not stripped
+|
+| ramdhan@n0psledbyt3:~/slashroot$ ./galatic
+| Enter flag : asdfasdsdf
+| Oops, salah!
++-------------------------------------------------------------------------------------+
+
+Sekarang kita load dengan radare2
+
++-----------------------------------------------------------------------------------------------------------------------+
+| ramdhan@n0psledbyt3:~/slashroot$ r2 ./galatic
+| [0x00400560]> aaa
+| [0x00400560]> pdf @ main
+| ...........*snip*..............
+|    | |   0x004006b6    39c2           cmp edx, eax
+|    |,==< 0x004006b8    7414           je 0x4006ce                   
+|    |||   0x004006ba    bfe6074000     mov edi, str.Oops__salah_  ; "Oops, salah!" @ 0x4007e6
+|    |||   0x004006bf    e83cfeffff     call sym.imp.puts ;sym.imp.puts()
+|    |||   0x004006c4    bf01000000     mov edi, 1
+|    |||   0x004006c9    e882feffff     call sym.imp.exit ;sym.imp.exit()
+|    ||    ; JMP XREF from 0x004006b8 (sym.main)
+|    |`--> 0x004006ce    8345fc01       add dword [rbp-local_0_4], 1
+|    | |   ; JMP XREF from 0x0040068e (sym.main)
+|    | `-> 0x004006d2    8b45fc         mov eax, dword [rbp-local_0_4]
+|    |     0x004006d5    83f80b         cmp eax, 0xb
+|    `===< 0x004006d8    76b6           jbe 0x400690                  
+|          0x004006da    bed9106000     mov esi, sym.buf           ; "ntu 4.8.4-2ubuntu1~14.04.3) 4.8.4" @ 0x6010d9
+|          0x004006df    bff8074000     mov edi, str.Nice__here_is ; "Nice, here is your flag: SlashRootCTF{%s}." @ 0x4
++------------------------------------------------------------------------------------------------------------------------+
+
+Jika dilihat diatas ada string "Oops, salah !" pada alamat 0x004006ba dan "Nice, here is your .."
+di alamat 0x004006df. Saya tidak melakukan reverse apapun, saya hanya mencari tahu dialamat berapa
+program menampilkan "Oops, salah!" dan "Nice, here is your .." Saya menggunakan angr untuk menyelesaikannya
+
+---------------------------------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ cat galatic_solve.py 
+import angr
+import re
+def flag():
+    p = angr.Project("./galatic", load_options={'auto_load_libs': False})
+    path_group = p.factory.path_group()
+    path_group.explore(find=0x00000000004006df, avoid=0x00000000004006ba)
+    flag = path_group.found[0].state.posix.dumps(0)
+    return re.sub("\n","",flag)
+
+
+print "SlashRootCTF{%s}" % (flag())
+ramdhan@n0psledbyt3:~/slashroot$ python galatic_solve.py 
+SlashRootCTF{revmemybruh!}
+----------------------------------------------------------------------------
+
+Flag : SlashRootCTF{revmemybruh!}

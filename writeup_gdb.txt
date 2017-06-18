@@ -1,0 +1,106 @@
+
+~ GDB ~ Reverse Engineering ~ SlashRootCTF (200pts)
+
+Diberikan akses : nc 103.200.7.150 9977
+
+Setelah masuk dan melihat isi dir, ada sebuah binary dengan filename rev_me
+-------------------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ nc 103.200.7.150 9977
+[-] Welcome to the virtual GDB [-]
+Available command: [ cat, ls, gdb ]
+ls
+bin
+deployer
+dev
+lib
+lib32
+lib64
+rev_me
+usr
+./rev_me
+[x] Welcome to the Jungle - SlashRoot Hacking Departement [x]
+[+] Login : fasdfa
+Oops, masih salah!
+---------------------------------------------------------------
+
+Agar login dengan benar kita harus mereverse nya. Jika dilihat di available
+command, hanya cat, ls dan gdb. Sepertinya panitia mengarahkan peserta untuk
+hanya menggunakan gdb. Agar bisa menggunakan ida di komputer lokal, saya mencoba
+mendownload binarynya dengan cara : echo "cat rev_me" | nc 103.200.7.150 9977 > rev_me
+
+-----------------------------------------------------------------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ echo "cat rev_me" | nc 103.200.7.150 9977 > rev_me
+^C
+ramdhan@n0psledbyt3:~/slashroot$ vim rev_me
+ramdhan@n0psledbyt3:~/slashroot$ file rev_me
+rev_me: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter
+ /lib64/ld-linux-x86-64.so.2, for GNU/Linux 2.6.24, BuildID[sha1]=d0772ea2e6ea3d78039befb2158781b25e4fdaec, 
+stripped
+ramdhan@n0psledbyt3:~/slashroot$ ./rev_me
+bash: ./rev_me: Permission denied
+ramdhan@n0psledbyt3:~/slashroot$ chmod +x rev_me
+ramdhan@n0psledbyt3:~/slashroot$ ./rev_me
+[x] Welcome to the Jungle - SlashRoot Hacking Departement [x]
+[+] Login : asdfasdf
+Oops, masih salah!
+-----------------------------------------------------------------------------------------------------------
+
+Gunakan text editor kalian untuk menghapus 2 baris awal yg berisi : "[-] Welcome to the virtual GDB [-]
+Available command: [ cat, ls, gdb ]". Sekarang binary sudah ditangan mari kita decompile dengan ida
+jika kita lihat bagian ini
+
+-----------------------------------------------------------
+  fgets(s, 12, stdin);
+  v5 = 0
+  for ( i = 0; i <= 0xA; ++i )
+  {
+    *(&v7 + i) -= 17;
+    if ( s[i] == *(&v7 + i) )
+      ++v5;
+  }
+  if ( v5 == 11 )
+  {
+    printf("Mantap, flagnya: SlashRootCTF{%s}!\n", s);
+-----------------------------------------------------------
+
+Program membandingkan setiap byte input kita dengan byte2 di v7 dan stiap
+byte di v7 dikurangi dengan 17. agar mendapat input yg pas, kita harus mengurangi
+setiap byte di v7 dengan 17. jika dilihat diawal fungsi v7 akan dideklarasikan
+di [ebp-30] 
+
+-----------------------------------------------------------------------------
+.text:0000000000400713                 mov     byte ptr [rbp+var_30], 78h
+.text:0000000000400717                 mov     byte ptr [rbp+var_30+1], 75h
+.text:000000000040071B                 mov     byte ptr [rbp+var_30+2], 73h
+.text:000000000040071F                 mov     byte ptr [rbp+var_30+3], 70h
+.text:0000000000400723                 mov     byte ptr [rbp+var_30+4], 7Ah
+.text:0000000000400727                 mov     byte ptr [rbp+var_30+5], 84h
+.text:000000000040072B                 mov     byte ptr [rbp+var_30+6], 70h
+.text:000000000040072F                 mov     byte ptr [rbp+var_30+7], 80h
+.text:0000000000400733                 mov     byte ptr [rbp+var_28], 7Ch
+.text:0000000000400737                 mov     byte ptr [rbp+var_28+1], 72h
+.text:000000000040073B                 mov     byte ptr [rbp+var_28+2], 8Ah
+------------------------------------------------------------------------------
+
+Kurangi semua bilangan2 itu dengan 17
+
+-----------------------------------------------------------------------
+ramdhan@n0psledbyt3:~/slashroot$ python
+Python 2.7.13 (default, Jan 19 2017, 14:48:08) 
+[GCC 6.3.0 20170118] on linux2
+Type "help", "copyright", "credits" or "license" for more information.
+>>> a = [0x78,0x75,0x73,0x70,0x7A,0x84,0x70,0x80,0x7C,0x72,0x8A]
+>>> hasil = ""
+>>> for i in a:
+...     hasil += chr(i-17)
+... 
+>>> hasil
+'gdb_is_okay'
+>>>
+ramdhan@n0psledbyt3:~/slashroot$ ./rev_me 
+[x] Welcome to the Jungle - SlashRoot Hacking Departement [x]
+[+] Login : gdb_is_okay
+Mantap, flagnya: SlashRootCTF{gdb_is_okay}!
+------------------------------------------------------------------------
+
+Flag : SlashRootCTF{gdb_is_okay}
